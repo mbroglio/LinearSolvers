@@ -13,7 +13,7 @@ class SolverResult:
 
 
 class IterativeSolver(ABC):
-    
+
     def __init__(self, tol, max_iter=20000):
         if max_iter < 20000:
             raise ValueError("max_iter must be >= 20000")

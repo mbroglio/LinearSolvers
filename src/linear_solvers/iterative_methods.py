@@ -4,7 +4,7 @@ from .base import IterativeSolver, SolverResult
 
 
 class JacobiSolver(IterativeSolver):
-    
+
     @property
     def name(self):
         return "Jacobi"
@@ -18,7 +18,7 @@ class JacobiSolver(IterativeSolver):
         n = b.shape[0]
         x = np.zeros(n)
         start = perf_counter()
-        
+
         for k in range(self.max_iter):
             rel_res = self._relative_residual(A, x, b)
             if rel_res < self.tol:
@@ -30,7 +30,7 @@ class JacobiSolver(IterativeSolver):
 
 
 class GaussSeidelSolver(IterativeSolver):
-    
+
     @property
     def name(self):
         return "Gauss-Seidel"
@@ -44,22 +44,26 @@ class GaussSeidelSolver(IterativeSolver):
         n = A.shape[0]
         x = np.zeros(n)
         start = perf_counter()
-        
+
         for k in range(self.max_iter):
             rel_res = self._relative_residual(A, x, b)
             if rel_res < self.tol:
                 return SolverResult(x, k, perf_counter() - start, rel_res, True)
-            
+
             x_old = x.copy()
             for i in range(n):
-                x[i] = (b[i] - np.dot(A[i, :i], x[:i]) - np.dot(A[i, i+1:], x_old[i+1:])) / diag[i]
+                x[i] = (
+                    b[i]
+                    - np.dot(A[i, :i], x[:i])
+                    - np.dot(A[i, i + 1 :], x_old[i + 1 :])
+                ) / diag[i]
 
         rel_res = self._relative_residual(A, x, b)
         return SolverResult(x, self.max_iter, perf_counter() - start, rel_res, False)
 
 
 class GradientSolver(IterativeSolver):
-    
+
     @property
     def name(self):
         return "Gradient"
@@ -73,17 +77,17 @@ class GradientSolver(IterativeSolver):
         x = np.zeros(n)
         r = b.copy()
         start = perf_counter()
-        
+
         for k in range(self.max_iter):
             rel_res = self._relative_residual(A, x, b)
             if rel_res < self.tol:
                 return SolverResult(x, k, perf_counter() - start, rel_res, True)
-            
+
             Ar = A @ r
             denom = np.dot(r, Ar)
             if denom <= 0.0:
                 raise ValueError("Matrix not positive definite")
-            
+
             alpha = np.dot(r, r) / denom
             x = x + alpha * r
             r = r - alpha * Ar
@@ -93,7 +97,7 @@ class GradientSolver(IterativeSolver):
 
 
 class ConjugateGradientSolver(IterativeSolver):
-    
+
     @property
     def name(self):
         return "Conjugate Gradient"
@@ -108,17 +112,17 @@ class ConjugateGradientSolver(IterativeSolver):
         r = b.copy()
         p = r.copy()
         start = perf_counter()
-        
+
         for k in range(self.max_iter):
             rel_res = self._relative_residual(A, x, b)
             if rel_res < self.tol:
                 return SolverResult(x, k, perf_counter() - start, rel_res, True)
-            
+
             Ap = A @ p
             denom = np.dot(p, Ap)
             if denom <= 0.0:
                 raise ValueError("Matrix not positive definite")
-            
+
             rr_old = np.dot(r, r)
             alpha = rr_old / denom
             x = x + alpha * p

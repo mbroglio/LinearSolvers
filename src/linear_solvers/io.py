@@ -5,7 +5,9 @@ import numpy as np
 def load_matrix_market(file_path):
     path = Path(file_path)
     with path.open("r") as f:
-        lines = [line.strip() for line in f if line.strip() and not line.startswith("%")]
+        lines = [
+            line.strip() for line in f if line.strip() and not line.startswith("%")
+        ]
 
     if not lines:
         raise ValueError("Empty file")
@@ -18,7 +20,7 @@ def load_matrix_market(file_path):
         is_symmetric = "symmetric" in header.lower()
         is_pattern = "pattern" in header.lower()
 
-    for line in lines[1:n_entries + 1]:
+    for line in lines[1 : n_entries + 1]:
         tokens = line.split()
         i = int(tokens[0]) - 1
         j = int(tokens[1]) - 1

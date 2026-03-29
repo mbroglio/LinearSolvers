@@ -41,7 +41,7 @@ Per le matrici fornite (`spa1.mtx`, `spa2.mtx`, `vem1.mtx`, `vem2.mtx`), seguire
     * Numero di iterazioni effettuate.
     * Tempo di calcolo.
 
-**Nota sui test:** I test devono essere eseguiti per diverse tolleranze, partendo da $tol = 10^{-10}$, mantenendo lo stesso hardware per i confronti.
+**Nota sui test:** I test devono essere eseguiti per diverse tolleranze (10^-4, 10^-6, 10^-8 e 10^-10), partendo da $tol = 10^{-10}$, mantenendo lo stesso hardware per i confronti.
 
 ---
 

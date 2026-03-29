@@ -30,7 +30,9 @@ def main():
 
     print(f"Matrix: {args.matrix.name}, shape: {A.shape}, tol: {args.tol}")
     print(f"Validation: x_exact = [1,1,...,1], b = A @ x_exact\n")
-    print(f"{'Method':<22} {'Conv':<7} {'RelErr':<12} {'RelRes':<12} {'Iters':<8} {'Time[s]':<10}")
+    print(
+        f"{'Method':<22} {'Conv':<7} {'RelErr':<12} {'RelRes':<12} {'Iters':<8} {'Time[s]':<10}"
+    )
     print("-" * 80)
 
     for solver in solvers:
@@ -38,10 +40,14 @@ def main():
             result = solver.solve(A, b)
             err = np.linalg.norm(result.solution - x_exact) / np.linalg.norm(x_exact)
             conv = "Yes" if result.converged else "No"
-            print(f"{solver.name:<22} {conv:<7} {err:<12.6e} {result.relative_residual:<12.6e} "
-                  f"{result.iterations:<8} {result.elapsed_seconds:<10.6f}")
+            print(
+                f"{solver.name:<22} {conv:<7} {err:<12.6e} {result.relative_residual:<12.6e} "
+                f"{result.iterations:<8} {result.elapsed_seconds:<10.6f}"
+            )
         except Exception as e:
-            print(f"{solver.name:<22} No      -            -            -        -          ({str(e)})")
+            print(
+                f"{solver.name:<22} No      -            -            -        -          ({str(e)})"
+            )
 
 
 if __name__ == "__main__":
