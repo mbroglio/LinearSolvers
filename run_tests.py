@@ -218,8 +218,8 @@ def generate_tables_and_plots(df: pd.DataFrame):
         
         methods = matrix_data['method'].unique()
         for method in methods:
-            # Skip gradient method
-            if 'gradient' in method.lower():
+            # Skip only gradient method (not conjugate gradient)
+            if method.lower() == 'gradient':
                 continue
                 
             method_data = matrix_data[matrix_data['method'] == method]
