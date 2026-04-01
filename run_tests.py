@@ -208,6 +208,48 @@ def generate_tables_and_plots(df: pd.DataFrame):
     
     print(f"✓ Grafici iterazioni salvati in {output_dir}")
     
+    # 2b. Grafici: Iterazioni vs Tolleranza per spa1 e spa2 (senza gradient)
+    print("\nGenerazione grafici iterazioni vs tolleranza (spa1 e spa2, no gradient)...")
+    spa_matrices = [m for m in matrices if 'spa1' in m or 'spa2' in m]
+    
+    for matrix in spa_matrices:
+        fig, ax = plt.subplots(figsize=(12, 7))
+        matrix_data = df[df['matrix'] == matrix]
+        
+        methods = matrix_data['method'].unique()
+        for method in methods:
+            # Skip gradient method
+            if 'gradient' in method.lower():
+                continue
+                
+            method_data = matrix_data[matrix_data['method'] == method]
+            method_data = method_data.sort_values('tolerance')
+            
+            # Filtra solo convergenze
+            converged_data = method_data[method_data['converged'] == True]
+            
+            if len(converged_data) > 0:
+                ax.plot(
+                    converged_data['tolerance'],
+                    converged_data['iterations'],
+                    marker='o',
+                    label=method,
+                    linewidth=2,
+                    markersize=8
+                )
+        
+        ax.set_xscale('log')
+        ax.set_xlabel('Tolerance', fontsize=12)
+        ax.set_ylabel('Iterations', fontsize=12)
+        ax.set_title(f'Iterations vs Tolerance - {matrix} (no gradient)', fontsize=14, fontweight='bold')
+        ax.legend(fontsize=10)
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(output_dir / f"iterations_vs_tolerance_{matrix.replace('.mtx', '')}_no_gradient.png", dpi=300)
+        plt.close()
+    
+    print(f"✓ Grafici spa1/spa2 (no gradient) salvati in {output_dir}")
+    
     # 3. Grafici: Tempo vs Tolleranza per ogni matrice
     print("\nGenerazione grafici tempo vs tolleranza...")
     
