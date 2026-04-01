@@ -157,6 +157,14 @@ def generate_tables_and_plots(df: pd.DataFrame):
     print("\n" + "="*100)
     print("Generazione tabelle e grafici...")
     print("="*100)
+
+    # Mappa colori fissa per evitare confusione tra metodi nei diversi grafici.
+    method_colors = {
+        'Jacobi': 'tab:blue',
+        'Gauss-Seidel': 'tab:orange',
+        'Gradient': 'tab:green',
+        'Conjugate Gradient': 'tab:red',
+    }
     
     # 1. Tabella riassuntiva per ogni matrice e tolleranza
     print("\nGenerazione tabella riassuntiva...")
@@ -192,6 +200,7 @@ def generate_tables_and_plots(df: pd.DataFrame):
                     converged_data['iterations'],
                     marker='o',
                     label=method,
+                    color=method_colors.get(method),
                     linewidth=2,
                     markersize=8
                 )
@@ -234,6 +243,7 @@ def generate_tables_and_plots(df: pd.DataFrame):
                     converged_data['iterations'],
                     marker='o',
                     label=method,
+                    color=method_colors.get(method),
                     linewidth=2,
                     markersize=8
                 )
@@ -271,6 +281,7 @@ def generate_tables_and_plots(df: pd.DataFrame):
                     converged_data['time'],
                     marker='s',
                     label=method,
+                    color=method_colors.get(method),
                     linewidth=2,
                     markersize=8
                 )
@@ -311,6 +322,7 @@ def generate_tables_and_plots(df: pd.DataFrame):
                     converged_data['relative_error'],
                     marker='^',
                     label=method,
+                    color=method_colors.get(method),
                     linewidth=2,
                     markersize=8
                 )
@@ -354,6 +366,7 @@ def generate_tables_and_plots(df: pd.DataFrame):
                     converged_data['iterations'],
                     marker='o',
                     label=method,
+                    color=method_colors.get(method),
                     linewidth=2
                 )
         
