@@ -166,8 +166,7 @@ def save_results(df: pd.DataFrame):
         aggfunc='first'
     )
     summary_table.to_csv(output_dir / "summary_table.csv")
-    summary_table.to_excel(output_dir / "summary_table.xlsx")
-    print(f"✓ Table saved in {output_dir / 'summary_table.xlsx'}")
+    print(f"✓ Table saved in {output_dir / 'summary_table.csv'}")
     
     # 2. Detailed table for each matrix
     print("\nGenerating detailed tables...")
@@ -185,10 +184,6 @@ def save_results(df: pd.DataFrame):
         
         report_table.to_csv(
             output_dir / f"detailed_report_{matrix.replace('.mtx', '')}.csv",
-            index=False
-        )
-        report_table.to_excel(
-            output_dir / f"detailed_report_{matrix.replace('.mtx', '')}.xlsx",
             index=False
         )
     
@@ -221,7 +216,7 @@ if __name__ == "__main__":
         print("Installing required packages...")
         import subprocess
         import sys
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas", "openpyxl"])
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas"])
         print("Packages installed successfully!")
     
     # Run tests
