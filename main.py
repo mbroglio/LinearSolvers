@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 import numpy as np
-from src.linear_solvers import (
+from src.baseline import (
     JacobiSolver,
     GaussSeidelSolver,
     GradientSolver,

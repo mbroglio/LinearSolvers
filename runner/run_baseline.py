@@ -3,10 +3,15 @@ Script to run complete tests on all matrices with different tolerances.
 Saves results in CSV format for analysis and plot generation.
 """
 
-import numpy as np
+import sys
 from pathlib import Path
+
+# Add project root to Python path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+import numpy as np
 import pandas as pd
-from src.linear_solvers import (
+from src.baseline import (
     JacobiSolver,
     GaussSeidelSolver,
     GradientSolver,
@@ -150,8 +155,8 @@ def save_results(df: pd.DataFrame):
     """Save results in CSV and Excel format."""
     
     # Create output directory
-    output_dir = Path("results")
-    output_dir.mkdir(exist_ok=True)
+    output_dir = Path("runner/results/baseline")
+    output_dir.mkdir(parents=True, exist_ok=True)
     
     print("\n" + "="*100)
     print("Saving results...")

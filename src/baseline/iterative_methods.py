@@ -17,15 +17,24 @@ class JacobiSolver(IterativeSolver):
 
         n = b.shape[0]
         x = np.zeros(n)
+        
+        norm_b = np.linalg.norm(b)
+        if norm_b == 0:
+            norm_b = 1.0
+
         start = perf_counter()
 
+        # Precompute the off-diagonal matrix to avoid matrix allocation natively in the loop
+        A_offdiag = A - np.diag(diag)
+
         for k in range(self.max_iter):
-            rel_res = self._relative_residual(A, x, b)
+            Ax_b = A @ x - b
+            rel_res = np.linalg.norm(Ax_b) / norm_b
             if rel_res < self.tol:
                 return SolverResult(x, k, perf_counter() - start, rel_res, True)
-            x = (b - (A - np.diag(diag)) @ x) / diag
+            x = (b - A_offdiag @ x) / diag
 
-        rel_res = self._relative_residual(A, x, b)
+        rel_res = np.linalg.norm(A @ x - b) / norm_b
         return SolverResult(x, self.max_iter, perf_counter() - start, rel_res, False)
 
 
@@ -43,10 +52,16 @@ class GaussSeidelSolver(IterativeSolver):
 
         n = A.shape[0]
         x = np.zeros(n)
+        
+        norm_b = np.linalg.norm(b)
+        if norm_b == 0:
+            norm_b = 1.0
+
         start = perf_counter()
 
         for k in range(self.max_iter):
-            rel_res = self._relative_residual(A, x, b)
+            Ax_b = A @ x - b
+            rel_res = np.linalg.norm(Ax_b) / norm_b
             if rel_res < self.tol:
                 return SolverResult(x, k, perf_counter() - start, rel_res, True)
 
@@ -58,7 +73,7 @@ class GaussSeidelSolver(IterativeSolver):
                     - np.dot(A[i, i + 1 :], x_old[i + 1 :])
                 ) / diag[i]
 
-        rel_res = self._relative_residual(A, x, b)
+        rel_res = np.linalg.norm(A @ x - b) / norm_b
         return SolverResult(x, self.max_iter, perf_counter() - start, rel_res, False)
 
 
@@ -76,10 +91,16 @@ class GradientSolver(IterativeSolver):
         n = b.shape[0]
         x = np.zeros(n)
         r = b.copy()
+        
+        norm_b = np.linalg.norm(b)
+        if norm_b == 0:
+            norm_b = 1.0
+
         start = perf_counter()
 
         for k in range(self.max_iter):
-            rel_res = self._relative_residual(A, x, b)
+            # Optimization: r is already the residual (b - Ax), no need to recompute A @ x
+            rel_res = np.linalg.norm(r) / norm_b
             if rel_res < self.tol:
                 return SolverResult(x, k, perf_counter() - start, rel_res, True)
 
@@ -111,10 +132,16 @@ class ConjugateGradientSolver(IterativeSolver):
         x = np.zeros(n)
         r = b.copy()
         p = r.copy()
+        
+        norm_b = np.linalg.norm(b)
+        if norm_b == 0:
+            norm_b = 1.0
+            
         start = perf_counter()
 
         for k in range(self.max_iter):
-            rel_res = self._relative_residual(A, x, b)
+            # Optimization: r is already the residual (b - Ax), no need to recompute A @ x
+            rel_res = np.linalg.norm(r) / norm_b
             if rel_res < self.tol:
                 return SolverResult(x, k, perf_counter() - start, rel_res, True)
 
