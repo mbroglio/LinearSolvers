@@ -17,7 +17,7 @@ class JacobiSolver(IterativeSolver):
 
         n = b.shape[0]
         x = np.zeros(n)
-        
+
         norm_b = np.linalg.norm(b)
         if norm_b == 0:
             norm_b = 1.0
@@ -32,7 +32,9 @@ class JacobiSolver(IterativeSolver):
             rel_res = np.linalg.norm(Ax_b) / norm_b
             if rel_res < self.tol:
                 return SolverResult(x, k, perf_counter() - start, rel_res, True)
-            x = (b - A_offdiag @ x) / diag
+
+            # Optimization: Write result into existing array x instead of creating a new one
+            x[:] = (b - A_offdiag @ x) / diag
 
         rel_res = np.linalg.norm(A @ x - b) / norm_b
         return SolverResult(x, self.max_iter, perf_counter() - start, rel_res, False)
@@ -52,12 +54,15 @@ class GaussSeidelSolver(IterativeSolver):
 
         n = A.shape[0]
         x = np.zeros(n)
-        
+
         norm_b = np.linalg.norm(b)
         if norm_b == 0:
             norm_b = 1.0
 
         start = perf_counter()
+
+        # Optimization: Pre-allocate x_old to avoid creating a new array every iteration
+        x_old = np.empty(n)
 
         for k in range(self.max_iter):
             Ax_b = A @ x - b
@@ -65,7 +70,9 @@ class GaussSeidelSolver(IterativeSolver):
             if rel_res < self.tol:
                 return SolverResult(x, k, perf_counter() - start, rel_res, True)
 
-            x_old = x.copy()
+            # Optimization: Copy data into the existing buffer instead of allocating a fresh array
+            x_old[:] = x
+
             for i in range(n):
                 x[i] = (
                     b[i]
@@ -91,7 +98,7 @@ class GradientSolver(IterativeSolver):
         n = b.shape[0]
         x = np.zeros(n)
         r = b.copy()
-        
+
         norm_b = np.linalg.norm(b)
         if norm_b == 0:
             norm_b = 1.0
@@ -110,8 +117,10 @@ class GradientSolver(IterativeSolver):
                 raise ValueError("Matrix not positive definite")
 
             alpha = np.dot(r, r) / denom
-            x = x + alpha * r
-            r = r - alpha * Ar
+
+            # Optimization: In-place arithmetic avoids array reallocation
+            x += alpha * r
+            r -= alpha * Ar
 
         rel_res = self._relative_residual(A, x, b)
         return SolverResult(x, self.max_iter, perf_counter() - start, rel_res, False)
@@ -132,11 +141,11 @@ class ConjugateGradientSolver(IterativeSolver):
         x = np.zeros(n)
         r = b.copy()
         p = r.copy()
-        
+
         norm_b = np.linalg.norm(b)
         if norm_b == 0:
             norm_b = 1.0
-            
+
         start = perf_counter()
 
         for k in range(self.max_iter):
@@ -152,11 +161,17 @@ class ConjugateGradientSolver(IterativeSolver):
 
             rr_old = np.dot(r, r)
             alpha = rr_old / denom
-            x = x + alpha * p
-            r = r - alpha * Ap
+
+            # Optimization: In-place arithmetic avoids array reallocation
+            x += alpha * p
+            r -= alpha * Ap
+
             rr_new = np.dot(r, r)
             beta = rr_new / rr_old
-            p = r + beta * p
+
+            # Optimization: Update p in-place
+            p *= beta
+            p += r
 
         rel_res = self._relative_residual(A, x, b)
         return SolverResult(x, self.max_iter, perf_counter() - start, rel_res, False)

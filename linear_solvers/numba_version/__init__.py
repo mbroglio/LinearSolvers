@@ -5,4 +5,3 @@ from .iterative_methods import (
     GradientSolver,
     ConjugateGradientSolver,
 )
-from .io import load_matrix_market

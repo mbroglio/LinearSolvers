@@ -1,12 +1,12 @@
 import argparse
 from pathlib import Path
 import numpy as np
-from src.baseline import (
+from scipy.io import mmread
+from linear_solvers.baseline import (
     JacobiSolver,
     GaussSeidelSolver,
     GradientSolver,
     ConjugateGradientSolver,
-    load_matrix_market,
 )
 
 
@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--max-iter", type=int, default=20000, help="Max iterations")
     args = parser.parse_args()
 
-    A = load_matrix_market(args.matrix)
+    A = mmread(args.matrix).toarray()
     x_exact = np.ones(A.shape[0])
     b = A @ x_exact
 

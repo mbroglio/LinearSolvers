@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linear_solvers"
+version = "0.1.0"
+description = "A Python library for iterative linear solvers"
+authors = [
+    {name = "Broglio Matteo"},
+    {name = "Caputo Lorenzo"},
+    {name = "Giuggioli Daniel"}
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "numba"
+]
+requires-python = ">=3.8"
