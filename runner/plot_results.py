@@ -10,6 +10,8 @@ import numpy as np
 from pathlib import Path
 import argparse
 
+BASELINE_RESULTS_DIR = Path(__file__).resolve().parent / "results" / "baseline"
+
 # Fixed color mapping to avoid confusion between methods in different plots
 METHOD_COLORS = {
     "Jacobi": "tab:blue",
@@ -21,7 +23,7 @@ METHOD_COLORS = {
 
 def load_results():
     """Load results from CSV files."""
-    results_dir = Path("results")
+    results_dir = BASELINE_RESULTS_DIR
 
     # Load all detailed reports
     all_data = []
@@ -443,8 +445,8 @@ def main():
     parser.add_argument(
         "--output",
         type=str,
-        default="results",
-        help="Output directory (default: results)",
+        default=str(BASELINE_RESULTS_DIR),
+        help="Output directory (default: runner/results/baseline)",
     )
     parser.add_argument(
         "--show", action="store_true", help="Show plots instead of just saving them"
@@ -463,7 +465,7 @@ def main():
 
     # Create output directory
     output_dir = Path(args.output)
-    output_dir.mkdir(exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"\nGenerating SVG plots...")
     print(f"Output: {output_dir}/")
