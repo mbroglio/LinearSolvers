@@ -2,6 +2,7 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,visualstudiocode
 
 .desktop.ini
+chapters/
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
