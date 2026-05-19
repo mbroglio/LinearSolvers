@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy.io import mmread
-from linear_solvers.numba_version import (
+from linear_solvers.numba import (
     JacobiSolver,
     GaussSeidelSolver,
     GradientSolver,
