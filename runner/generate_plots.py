@@ -5,12 +5,12 @@ import os
 
 
 def plot_sparsity(matrix_path, title):
-    A = scipy.io.mmread(matrix_path)
+    A = scipy.io.mmread(matrix_path).tocsr()
     plt.figure(figsize=(6, 6))
     plt.spy(A, markersize=1)
     plt.title(f"Sparsity Pattern - {title}")
     plt.tight_layout()
-    plt.savefig(f"{title.replace(' ', '_').lower()}_spy.png")
+    plt.savefig(f"results/density/{title.replace(' ', '_').lower()}_spy.png")
     plt.close()
 
 

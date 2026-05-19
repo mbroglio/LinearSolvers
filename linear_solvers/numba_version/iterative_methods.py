@@ -5,15 +5,26 @@ from .base import IterativeSolver, SolverResult
 
 
 @njit(fastmath=True)
-def _jacobi_core(A, b, diag, n, max_iter, tol, norm_b):
+def _csr_matvec(data, indices, indptr, n, x):
+    res = np.zeros(n)
+    for i in range(n):
+        dot = 0.0
+        for p in range(indptr[i], indptr[i + 1]):
+            dot += data[p] * x[indices[p]]
+        res[i] = dot
+    return res
+
+
+@njit(fastmath=True)
+def _jacobi_core(data, indices, indptr, b, diag, n, max_iter, tol, norm_b):
     x = np.zeros(n)
     x_new = np.zeros(n)
     for k in range(max_iter):
         norm_res = 0.0
         for i in range(n):
             Ax_i = 0.0
-            for j in range(n):
-                Ax_i += A[i, j] * x[j]
+            for p in range(indptr[i], indptr[i + 1]):
+                Ax_i += data[p] * x[indices[p]]
             res_i = Ax_i - b[i]
             norm_res += res_i * res_i
             x_new[i] = x[i] - res_i / diag[i]
@@ -28,8 +39,8 @@ def _jacobi_core(A, b, diag, n, max_iter, tol, norm_b):
     norm_res = 0.0
     for i in range(n):
         Ax_i = 0.0
-        for j in range(n):
-            Ax_i += A[i, j] * x[j]
+        for p in range(indptr[i], indptr[i + 1]):
+            Ax_i += data[p] * x[indices[p]]
         res_i = Ax_i - b[i]
         norm_res += res_i * res_i
     rel_res = np.sqrt(norm_res) / norm_b
@@ -43,7 +54,7 @@ class JacobiSolver(IterativeSolver):
 
     def solve(self, A, b):
         self._validate_inputs(A, b)
-        diag = np.diag(A)
+        diag = A.diagonal()
         if np.any(np.abs(diag) < 1e-15):
             raise ValueError("Jacobi requires non-zero diagonal")
         norm_b = np.linalg.norm(b)
@@ -51,20 +62,28 @@ class JacobiSolver(IterativeSolver):
             norm_b = 1.0
         start = perf_counter()
         x, k, rel_res, conv = _jacobi_core(
-            A, b, diag, b.shape[0], self.max_iter, self.tol, norm_b
+            A.data,
+            A.indices,
+            A.indptr,
+            b,
+            diag,
+            b.shape[0],
+            self.max_iter,
+            self.tol,
+            norm_b,
         )
         return SolverResult(x, k, perf_counter() - start, rel_res, conv)
 
 
 @njit(fastmath=True)
-def _gs_core(A, b, diag, n, max_iter, tol, norm_b):
+def _gs_core(data, indices, indptr, b, diag, n, max_iter, tol, norm_b):
     x = np.zeros(n)
     for k in range(max_iter):
         norm_res = 0.0
         for i in range(n):
             Ax_i = 0.0
-            for j in range(n):
-                Ax_i += A[i, j] * x[j]
+            for p in range(indptr[i], indptr[i + 1]):
+                Ax_i += data[p] * x[indices[p]]
             res_i = Ax_i - b[i]
             norm_res += res_i * res_i
 
@@ -74,16 +93,17 @@ def _gs_core(A, b, diag, n, max_iter, tol, norm_b):
 
         for i in range(n):
             sum_Ax = 0.0
-            for j in range(n):
+            for p in range(indptr[i], indptr[i + 1]):
+                j = indices[p]
                 if i != j:
-                    sum_Ax += A[i, j] * x[j]
+                    sum_Ax += data[p] * x[j]
             x[i] = (b[i] - sum_Ax) / diag[i]
 
     norm_res = 0.0
     for i in range(n):
         Ax_i = 0.0
-        for j in range(n):
-            Ax_i += A[i, j] * x[j]
+        for p in range(indptr[i], indptr[i + 1]):
+            Ax_i += data[p] * x[indices[p]]
         res_i = Ax_i - b[i]
         norm_res += res_i * res_i
     rel_res = np.sqrt(norm_res) / norm_b
@@ -97,7 +117,7 @@ class GaussSeidelSolver(IterativeSolver):
 
     def solve(self, A, b):
         self._validate_inputs(A, b)
-        diag = np.diag(A)
+        diag = A.diagonal()
         if np.any(np.abs(diag) < 1e-15):
             raise ValueError("Gauss-Seidel requires non-zero diagonal")
         norm_b = np.linalg.norm(b)
@@ -105,20 +125,28 @@ class GaussSeidelSolver(IterativeSolver):
             norm_b = 1.0
         start = perf_counter()
         x, k, rel_res, conv = _gs_core(
-            A, b, diag, A.shape[0], self.max_iter, self.tol, norm_b
+            A.data,
+            A.indices,
+            A.indptr,
+            b,
+            diag,
+            A.shape[0],
+            self.max_iter,
+            self.tol,
+            norm_b,
         )
         return SolverResult(x, k, perf_counter() - start, rel_res, conv)
 
 
 @njit(fastmath=True)
-def _grad_core(A, b, n, max_iter, tol, norm_b):
+def _grad_core(data, indices, indptr, b, n, max_iter, tol, norm_b):
     x = np.zeros(n)
     r = b.copy()
     for k in range(max_iter):
         rel_res = np.linalg.norm(r) / norm_b
         if rel_res < tol:
             return x, k, rel_res, True
-        Ar = A @ r
+        Ar = _csr_matvec(data, indices, indptr, n, r)
         denom = np.dot(r, Ar)
         if denom <= 0.0:
             return x, k, rel_res, False
@@ -136,20 +164,20 @@ class GradientSolver(IterativeSolver):
 
     def solve(self, A, b):
         self._validate_inputs(A, b)
-        if not np.allclose(A, A.T):
+        if np.abs(A - A.T).max() > 1e-10:
             raise ValueError("Gradient requires symmetric matrix")
         norm_b = np.linalg.norm(b)
         if norm_b == 0:
             norm_b = 1.0
         start = perf_counter()
         x, k, rel_res, conv = _grad_core(
-            A, b, b.shape[0], self.max_iter, self.tol, norm_b
+            A.data, A.indices, A.indptr, b, b.shape[0], self.max_iter, self.tol, norm_b
         )
         return SolverResult(x, k, perf_counter() - start, rel_res, conv)
 
 
 @njit(fastmath=True)
-def _cg_core(A, b, n, max_iter, tol, norm_b):
+def _cg_core(data, indices, indptr, b, n, max_iter, tol, norm_b):
     x = np.zeros(n)
     r = b.copy()
     p = r.copy()
@@ -157,7 +185,7 @@ def _cg_core(A, b, n, max_iter, tol, norm_b):
         rel_res = np.linalg.norm(r) / norm_b
         if rel_res < tol:
             return x, k, rel_res, True
-        Ap = A @ p
+        Ap = _csr_matvec(data, indices, indptr, n, p)
         denom = np.dot(p, Ap)
         if denom <= 0.0:
             return x, k, rel_res, False
@@ -179,13 +207,13 @@ class ConjugateGradientSolver(IterativeSolver):
 
     def solve(self, A, b):
         self._validate_inputs(A, b)
-        if not np.allclose(A, A.T):
+        if np.abs(A - A.T).max() > 1e-10:
             raise ValueError("Conjugate Gradient requires symmetric matrix")
         norm_b = np.linalg.norm(b)
         if norm_b == 0:
             norm_b = 1.0
         start = perf_counter()
         x, k, rel_res, conv = _cg_core(
-            A, b, b.shape[0], self.max_iter, self.tol, norm_b
+            A.data, A.indices, A.indptr, b, b.shape[0], self.max_iter, self.tol, norm_b
         )
         return SolverResult(x, k, perf_counter() - start, rel_res, conv)

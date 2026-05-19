@@ -58,9 +58,10 @@ def run_complete_tests():
         print(f"{'='*100}")
 
         # Load matrix
-        A = mmread(matrix_path).toarray()
+        A = mmread(matrix_path).tocsr()
         print(f"Matrix shape: {A.shape}")
-        print(f"Matrix density: {np.count_nonzero(A) / A.size * 100:.2f}%")
+        num_elements = A.shape[0] * A.shape[1]
+        print(f"Matrix density: {A.nnz / num_elements * 100:.2f}%")
 
         # Create exact solution and right-hand side (Steps 1 and 2 from specification)
         x_exact = np.ones(A.shape[0])

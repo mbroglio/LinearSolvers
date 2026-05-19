@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--max-iter", type=int, default=20000, help="Max iterations")
     args = parser.parse_args()
 
-    A = mmread(args.matrix).toarray()
+    A = mmread(args.matrix).tocsr()
     x_exact = np.ones(A.shape[0])
     b = A @ x_exact
 

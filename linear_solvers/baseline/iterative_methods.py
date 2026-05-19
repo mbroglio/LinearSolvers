@@ -11,7 +11,7 @@ class JacobiSolver(IterativeSolver):
 
     def solve(self, A, b):
         self._validate_inputs(A, b)
-        diag = np.diag(A)
+        diag = A.diagonal()
         if np.any(np.isclose(diag, 0.0)):
             raise ValueError("Jacobi requires non-zero diagonal")
 
@@ -25,7 +25,8 @@ class JacobiSolver(IterativeSolver):
         start = perf_counter()
 
         # Precompute the off-diagonal matrix to avoid matrix allocation natively in the loop
-        A_offdiag = A - np.diag(diag)
+        A_offdiag = A.copy()
+        A_offdiag.setdiag(0)
 
         for k in range(self.max_iter):
             Ax_b = A @ x - b
@@ -48,7 +49,7 @@ class GaussSeidelSolver(IterativeSolver):
 
     def solve(self, A, b):
         self._validate_inputs(A, b)
-        diag = np.diag(A)
+        diag = A.diagonal()
         if np.any(np.isclose(diag, 0.0)):
             raise ValueError("Gauss-Seidel requires non-zero diagonal")
 
@@ -61,24 +62,21 @@ class GaussSeidelSolver(IterativeSolver):
 
         start = perf_counter()
 
-        # Optimization: Pre-allocate x_old to avoid creating a new array every iteration
-        x_old = np.empty(n)
-
         for k in range(self.max_iter):
             Ax_b = A @ x - b
             rel_res = np.linalg.norm(Ax_b) / norm_b
             if rel_res < self.tol:
                 return SolverResult(x, k, perf_counter() - start, rel_res, True)
 
-            # Optimization: Copy data into the existing buffer instead of allocating a fresh array
-            x_old[:] = x
-
             for i in range(n):
-                x[i] = (
-                    b[i]
-                    - np.dot(A[i, :i], x[:i])
-                    - np.dot(A[i, i + 1 :], x_old[i + 1 :])
-                ) / diag[i]
+                row_start = A.indptr[i]
+                row_end = A.indptr[i + 1]
+                data = A.data[row_start:row_end]
+                indices = A.indices[row_start:row_end]
+
+                # Optimization: Vectorized dot product mapped exactly to memory indices
+                sum_Ax = np.dot(data, x[indices]) - diag[i] * x[i]
+                x[i] = (b[i] - sum_Ax) / diag[i]
 
         rel_res = np.linalg.norm(A @ x - b) / norm_b
         return SolverResult(x, self.max_iter, perf_counter() - start, rel_res, False)
@@ -92,7 +90,7 @@ class GradientSolver(IterativeSolver):
 
     def solve(self, A, b):
         self._validate_inputs(A, b)
-        if not np.allclose(A, A.T):
+        if np.abs(A - A.T).max() > 1e-10:
             raise ValueError("Gradient requires symmetric matrix")
 
         n = b.shape[0]
@@ -134,7 +132,7 @@ class ConjugateGradientSolver(IterativeSolver):
 
     def solve(self, A, b):
         self._validate_inputs(A, b)
-        if not np.allclose(A, A.T):
+        if np.abs(A - A.T).max() > 1e-10:
             raise ValueError("Conjugate Gradient requires symmetric matrix")
 
         n = b.shape[0]
