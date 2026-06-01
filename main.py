@@ -17,9 +17,13 @@ def main():
     parser.add_argument("--max-iter", type=int, default=20000, help="Max iterations")
     args = parser.parse_args()
 
-    A = mmread(args.matrix).tocsr()
-    x_exact = np.ones(A.shape[0])
-    b = A @ x_exact
+    A = mmread(
+        args.matrix
+    ).tocsr()  # carica la matrice da file .mtx e la converte in formato CSR
+    x_exact = np.ones(
+        A.shape[0]
+    )  # vettore soluzione esatta (tutti 1) per la validazione
+    b = A @ x_exact  # calcola il termine noto b = A * x_exact
 
     solvers = [
         JacobiSolver(args.tol, args.max_iter),
@@ -38,7 +42,9 @@ def main():
     for solver in solvers:
         try:
             result = solver.solve(A, b)
-            err = np.linalg.norm(result.solution - x_exact) / np.linalg.norm(x_exact)
+            err = np.linalg.norm(result.solution - x_exact) / np.linalg.norm(
+                x_exact
+            )  # errore relativo sulla soluzione: ‖x - x_exact‖ / ‖x_exact‖
             conv = "Yes" if result.converged else "No"
             print(
                 f"{solver.name:<22} {conv:<7} {err:<12.6e} {result.relative_residual:<12.6e} "

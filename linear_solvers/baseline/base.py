@@ -36,7 +36,9 @@ class IterativeSolver(ABC):
             raise ValueError("Dimension mismatch")
 
     def _relative_residual(self, A, x, b):
-        norm_b = np.linalg.norm(b)
+        norm_b = np.linalg.norm(b)  # norma euclidea di b
         if norm_b > 0:
-            return np.linalg.norm(A @ x - b) / norm_b
-        return np.linalg.norm(A @ x - b)
+            return (
+                np.linalg.norm(A @ x - b) / norm_b
+            )  # residuo relativo: ‖Ax - b‖ / ‖b‖
+        return np.linalg.norm(A @ x - b)  # residuo assoluto se b = 0
