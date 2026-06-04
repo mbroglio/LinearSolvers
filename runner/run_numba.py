@@ -1,6 +1,40 @@
-"""
-Script to run complete tests on all matrices with different tolerances.
-Saves results in CSV format for analysis and plot generation.
+"""runner.run_numba: Benchmark script for the Numba-accelerated iterative solvers.
+
+This script is the Numba-backend counterpart of :mod:`runner.run_baseline`.
+It runs the identical test suite (same matrices, tolerances, and validation
+procedure) but uses the JIT-compiled solver implementations from
+:mod:`linear_solvers.numba` instead of the pure NumPy/SciPy baseline.
+
+Results are saved under ``runner/results/numba/`` so that baseline and Numba
+outputs can be compared side-by-side.
+
+* **Matrices**: ``spa1.mtx``, ``spa2.mtx``, ``vem1.mtx``, ``vem2.mtx``
+  (loaded from the ``data/`` directory relative to the project root).
+* **Tolerances**: ``1e-4``, ``1e-6``, ``1e-8``, ``1e-10``.
+* **Solvers**: :class:`~linear_solvers.numba.JacobiSolver`,
+  :class:`~linear_solvers.numba.GaussSeidelSolver`,
+  :class:`~linear_solvers.numba.GradientSolver`,
+  :class:`~linear_solvers.numba.ConjugateGradientSolver`.
+
+Note on JIT warm-up:
+    The first solve call for each solver type triggers Numba compilation.
+    The measured ``time`` in the output therefore includes the one-time
+    compilation overhead.  Subsequent calls on the same matrix type will
+    be substantially faster.
+
+Output files:
+    runner/results/numba/summary_table.csv
+        Pivot table with iterations, time, and convergence for each
+        ``(matrix, tolerance, method)`` triple.
+    runner/results/numba/detailed_report_<matrix>.csv
+        Per-matrix detailed table with relative error, relative residual,
+        iterations, and time for every ``(method, tolerance)`` pair.
+
+Usage (from the project root)::
+
+    python -m runner.run_numba
+    # or
+    python runner/run_numba.py
 """
 
 from pathlib import Path
@@ -8,6 +42,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy.io import mmread
+
 from linear_solvers.numba import (
     JacobiSolver,
     GaussSeidelSolver,
@@ -16,10 +51,33 @@ from linear_solvers.numba import (
 )
 
 
-def run_complete_tests():
-    """Run complete tests according to project specifications."""
+def run_complete_tests() -> pd.DataFrame:
+    """Run the full benchmark suite using Numba-accelerated solvers.
 
-    # Test matrices
+    Iterates over every combination of test matrix and tolerance, instantiates
+    the four Numba solvers, calls :meth:`~linear_solvers.numba.IterativeSolver.solve`,
+    and records the results.  Matrices that are not found on disk are skipped
+    with a warning.
+
+    Returns:
+        pandas.DataFrame: A flat table with one row per
+        ``(matrix, method, tolerance)`` triple and the following columns:
+
+        * ``matrix`` (str) – filename of the test matrix.
+        * ``method`` (str) – solver name.
+        * ``tolerance`` (float) – convergence tolerance used.
+        * ``converged`` (bool) – whether the solver reached the tolerance.
+        * ``relative_error`` (float) – ``‖x − x_exact‖₂ / ‖x_exact‖₂``,
+          or ``NaN`` on solver failure.
+        * ``relative_residual`` (float) – ``‖Ax − b‖₂ / ‖b‖₂`` at
+          termination, or ``NaN`` on solver failure.
+        * ``iterations`` (int) – number of iterations performed (``0`` on
+          solver failure).
+        * ``time`` (float) – wall-clock solve time in seconds, including any
+          Numba JIT compilation overhead on the first call (``0.0`` on
+          solver failure).
+    """
+    # Test matrices (must reside in data/ relative to the project root).
     matrix_files = [
         "spa1.mtx",
         "spa2.mtx",
@@ -27,15 +85,14 @@ def run_complete_tests():
         "vem2.mtx",
     ]
 
-    # Tolerances to test (from specification)
+    # Tolerances from the project specification.
     tolerances = [1e-4, 1e-6, 1e-8, 1e-10]
 
-    # Parameters
     max_iter = 20000
     data_dir = Path("data")
 
-    # Results for each matrix
-    all_results = {}
+    # Accumulate results grouped by matrix name.
+    all_results: dict[str, list[dict]] = {}
 
     print("=" * 100)
     print("TEST SUITE - Linear Solvers Validation")
@@ -45,7 +102,6 @@ def run_complete_tests():
     print("=" * 100)
     print()
 
-    # Iterate over each matrix
     for matrix_file in matrix_files:
         matrix_path = data_dir / matrix_file
 
@@ -57,20 +113,18 @@ def run_complete_tests():
         print(f"Testing matrix: {matrix_file}")
         print(f"{'='*100}")
 
-        # Load matrix
+        # Load matrix and convert to CSR format for CSR-native JIT kernels.
         A = mmread(matrix_path).tocsr()
         print(f"Matrix shape: {A.shape}")
         num_elements = A.shape[0] * A.shape[1]
         print(f"Matrix density: {A.nnz / num_elements * 100:.2f}%")
 
-        # Create exact solution and right-hand side (Steps 1 and 2 from specification)
+        # Synthetic exact solution: x_exact = [1, …, 1], b = A @ x_exact.
         x_exact = np.ones(A.shape[0])
         b = A @ x_exact
 
-        # Results for this matrix
-        matrix_results = []
+        matrix_results: list[dict] = []
 
-        # Iterate over each tolerance
         for tol in tolerances:
             print(f"\n{'-'*100}")
             print(f"Tolerance: {tol:.0e}")
@@ -80,7 +134,6 @@ def run_complete_tests():
             )
             print(f"{'-'*100}")
 
-            # Define solvers
             solvers = [
                 JacobiSolver(tol, max_iter),
                 GaussSeidelSolver(tol, max_iter),
@@ -88,28 +141,23 @@ def run_complete_tests():
                 ConjugateGradientSolver(tol, max_iter),
             ]
 
-            # Test each solver
             for solver in solvers:
                 try:
-                    # Solve the system (Step 3)
+                    # Solve Ax = b (Step 3 of the project specification).
                     result = solver.solve(A, b)
 
-                    # Calculate relative error (Step 4)
+                    # Relative error ‖x − x_exact‖₂ / ‖x_exact‖₂ (Step 4).
                     rel_error = np.linalg.norm(
                         result.solution - x_exact
                     ) / np.linalg.norm(x_exact)
 
-                    # Convergence
                     conv_str = "Yes" if result.converged else "No"
-
-                    # Print results
                     print(
                         f"{solver.name:<25} {conv_str:<8} {rel_error:<14.6e} "
                         f"{result.relative_residual:<14.6e} {result.iterations:<10} "
                         f"{result.elapsed_seconds:<12.6f}"
                     )
 
-                    # Save results
                     matrix_results.append(
                         {
                             "matrix": matrix_file,
@@ -126,7 +174,7 @@ def run_complete_tests():
                 except Exception as e:
                     print(f"{solver.name:<25} No       ERROR: {str(e)}")
 
-                    # Save error result
+                    # Record a failure row so the CSV remains complete.
                     matrix_results.append(
                         {
                             "matrix": matrix_file,
@@ -142,10 +190,9 @@ def run_complete_tests():
 
         all_results[matrix_file] = matrix_results
 
-    # Convert to DataFrame for analysis
+    # Flatten all per-matrix result lists into a single DataFrame.
     df = pd.DataFrame([item for results in all_results.values() for item in results])
 
-    # Save results
     save_results(df)
 
     print("\n" + "=" * 100)
@@ -156,10 +203,25 @@ def run_complete_tests():
     return df
 
 
-def save_results(df: pd.DataFrame):
-    """Save results in CSV and Excel format."""
+def save_results(df: pd.DataFrame) -> None:
+    """Persist Numba benchmark results to CSV files.
 
-    # Create output directory
+    Creates the output directory ``runner/results/numba/`` if it does not
+    exist, then writes:
+
+    1. A **summary pivot table** (``summary_table.csv``) indexed by
+       ``(matrix, tolerance)`` with columns for each solver's iterations,
+       wall-clock time, and convergence flag.
+    2. A **per-matrix detailed report** (``detailed_report_<matrix>.csv``)
+       sorted by ``(tolerance, method)``, containing method name, tolerance,
+       convergence flag, relative error, iteration count, and time.
+
+    Finally, a convergence statistics overview is printed to stdout.
+
+    Args:
+        df (pandas.DataFrame): Flat result table as returned by
+            :func:`run_complete_tests`.
+    """
     output_dir = Path("runner/results/numba")
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -167,7 +229,7 @@ def save_results(df: pd.DataFrame):
     print("Saving results...")
     print("=" * 100)
 
-    # 1. Summary table for each matrix and tolerance
+    # 1. Summary pivot table: rows = (matrix, tolerance), columns = methods.
     print("\nGenerating summary table...")
     summary_table = df.pivot_table(
         index=["matrix", "tolerance"],
@@ -178,7 +240,7 @@ def save_results(df: pd.DataFrame):
     summary_table.to_csv(output_dir / "summary_table.csv")
     print(f"✓ Table saved in {output_dir / 'summary_table.csv'}")
 
-    # 2. Detailed table for each matrix
+    # 2. Detailed per-matrix report for each test matrix.
     print("\nGenerating detailed tables...")
     matrices = df["matrix"].unique()
 
@@ -186,7 +248,6 @@ def save_results(df: pd.DataFrame):
         matrix_data = df[df["matrix"] == matrix].copy()
         matrix_data = matrix_data.sort_values(["tolerance", "method"])
 
-        # Format for report
         report_table = matrix_data[
             ["method", "tolerance", "converged", "relative_error", "iterations", "time"]
         ].copy()
@@ -198,7 +259,7 @@ def save_results(df: pd.DataFrame):
 
     print(f"✓ Detailed tables saved in {output_dir}")
 
-    # 3. Print final statistics
+    # 3. Convergence statistics summary printed to stdout.
     print("\n" + "=" * 100)
     print("FINAL STATISTICS")
     print("=" * 100)
@@ -211,14 +272,13 @@ def save_results(df: pd.DataFrame):
             method_data = matrix_data[matrix_data["method"] == method]
             converged_count = method_data["converged"].sum()
             total_count = len(method_data)
-
             print(f"  {method:25s}: {converged_count}/{total_count} converged")
 
     print("\n" + "=" * 100)
 
 
 if __name__ == "__main__":
-    # Install pandas if needed
+    # Ensure pandas is available (it is listed in pyproject.toml dependencies).
     try:
         import pandas
     except ImportError:
@@ -229,7 +289,6 @@ if __name__ == "__main__":
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas"])
         print("Packages installed successfully!")
 
-    # Run tests
     df = run_complete_tests()
 
     print("\n✓ All tests completed successfully!")
